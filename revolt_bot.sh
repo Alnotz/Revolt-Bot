@@ -103,10 +103,7 @@ do
     shift 2;;
 
   ('-m'|'--message'|'--')
-    if [[ $2 == - ]]
-    then
-      MESSAGE=/dev/stdin
-    elif [[ $2 == "" ]]
+    if [[ $2 == "" ]]
     then
       MESSAGE=""
     else
