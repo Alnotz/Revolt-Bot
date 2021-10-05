@@ -1,69 +1,130 @@
 #!/usr/bin/env bash
+#COMMANDE:
+#```bash
+#bash revolt_bot.sh \
+#  -t 'JETON' \
+#  -s 'STATUT'
+#```
+#COMMANDE:
+#```bash
+#bash revolt_bot.sh \
+#  -t 'JETON' \
+#  -c 'SALON' \
+#  -m 'TEXTE'
+#```
 #NOTE : pour cURL et la partie Python
 #```bash
 #sudo apt install curl
 #pip install py-ulid
 #```
-BOT_TOKEN='kzTf-pE6z5fPsOolRmsFTzB-WWxz9QDMIf9V8SYp-_UWnMxSyhqgG828mNx5na4S'
-case $1 in
-(-h | --help)
-  echo -e """
-$0 (-h|--help)
-$0 (-s|--status) (on|off)
-$0 MESSAGE [CHANNEL_ID]
-""";;
-
-(-s | --status)
-  case $2 in
-  (on)
-    STATUS='Online'
-    echo 'Présence du bot :'
-    curl -H "x-bot-token: $BOT_TOKEN" \
-      -X PATCH \
-      --data """
+declare BOT_TOKEN
+declare STATUS
+declare CHANNEL_ID
+declare MESSAGE
+T_FLAG=0
+S_FLAG=0
+C_FLAG=0
+M_FLAG=0
+function presence()
+{
+  #$1: 'Online'|'Idle'
+  echo 'Présence du bot :'
+  curl -H "x-bot-token: $BOT_TOKEN" \
+    -X 'PATCH' \
+    --data """
 {
   \"status\": {
-    \"text\": \"discute\",
-    \"presence\": \"$STATUS\"
+    \"text\": \"$1\",
+    \"presence\": \"$1\"
   }
 }
 """ \
-      -w "\n%{http_code}\n" \
-      -- 'https://api.revolt.chat/users/@me';;
-  (off)
-    STATUS='Idle'
-    echo 'Abscence du bot :'
-    curl -H "x-bot-token: $BOT_TOKEN" \
-      -X PATCH \
-      --data """
-{
-  \"status\": {
-    \"text\": \"dort\",
-    \"presence\": \"$STATUS\"
-  }
+    -w "\n%{http_code}\n" \
+    -- 'https://api.revolt.chat/users/@me'
+  echo
 }
-""" \
-      -w "\n%{http_code}\n" \
-      -- 'https://api.revolt.chat/users/@me';;
-  (*);;
-  esac;;
-  
-(*) 
-  if [[ $2 = "" ]]
-  then
-    CHANNEL_ID='01FH6SSZ0AB0N9CSK2WSCTT9T5'
-  else
-    CHANNEL_ID=$2
-  fi
+function message()
+{
+  #$1: $CHANNEL_ID
+  #$2: $MESSAGE
   ULID=$( python -c 'from ulid import ULID; ulid = ULID(); print(ulid.generate())' )
   echo 'Message à mon salon :'
   curl -H "x-bot-token: $BOT_TOKEN" \
     --data """
 {
-  \"content\": \"$1\",
+  \"content\": \"$2\",
   \"nonce\": \"$ULID\"
 }
-    """ \
-    -- "https://api.revolt.chat/channels/$CHANNEL_ID/messages/"
-  echo ;;
-esac
+""" \
+    -- "https://api.revolt.chat/channels/$1/messages/"
+  echo
+}
+#Premier examen si aide.
+if [[ $1 == '-h' ]] || [[ $1 == '--help' ]]
+then
+  echo -e """
+$0 (-h|--help)
+$0 (-t|--token) BOT_TOKEN (-s|--status) (on|off)
+$0 (-t|--token) BOT_TOKEN (-c|--channel) CHANNEL_ID (-m|--message|--) MESSAGE
+"""
+  exit 0
+fi
+#Examens suivants si pas d’aide.
+#Balayage des arguments par paires.
+for NB in {0..10}
+do
+  case $1 in
+  ('-t'|'--token')
+    if [[ $2 != "" ]]
+    then
+      BOT_TOKEN=$2
+      T_FLAG=1
+    fi
+    shift 2;;
+
+  ('-s'|'--status')
+    case $2 in
+    ('on')
+      STATUS='Online'
+      S_FLAG=1;;
+    ('off')
+      STATUS='Idle'
+      S_FLAG=1;;
+    (*);;
+    esac
+    shift 2;;
+    
+  ('-c'|'--channel')
+    if [[ $2 != "" ]]
+    then
+      CHANNEL_ID=$2
+      C_FLAG=1
+    fi
+    shift 2;;
+
+  ('-m'|'--message'|'--')
+    if [[ $2 != "" ]]
+    then
+      MESSAGE=$2
+    else
+      MESSAGE=""
+    fi
+    M_FLAG=1
+    shift 2;;
+
+  (*)
+    if [[ $T_FLAG == 1 ]] && [[ $S_FLAG == 1 ]]
+    then
+      presence $STATUS
+      exit 0
+    elif [[ $T_FLAG == 1 ]] && [[ $C_FLAG == 1 ]] && [[ $M_FLAG == 1 ]]
+    then
+      message $CHANNEL_ID $MESSAGE
+      exit 0
+    else
+      echo 'Erreur: mauvais arguments.'
+      echo 'Taper '$0' --help.'
+      exit 1
+    fi;;
+  esac
+done
