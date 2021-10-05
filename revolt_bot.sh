@@ -47,7 +47,7 @@ function message()
 {
   #$1: $CHANNEL_ID
   #$2: $MESSAGE
-  ULID=$( python -c 'from ulid import ULID; ulid = ULID(); print(ulid.generate())' )
+  ULID=$( python ./revolt_bot.py )
   echo 'Message à mon salon :'
   curl -H "x-bot-token: $BOT_TOKEN" \
     --data """
@@ -103,11 +103,14 @@ do
     shift 2;;
 
   ('-m'|'--message'|'--')
-    if [[ $2 != "" ]]
+    if [[ $2 == - ]]
     then
-      MESSAGE=$2
-    else
+      MESSAGE=/dev/stdin
+    elif [[ $2 == "" ]]
+    then
       MESSAGE=""
+    else
+      MESSAGE=$2
     fi
     M_FLAG=1
     shift 2;;
